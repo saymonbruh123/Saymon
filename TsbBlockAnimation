@@ -1,5 +1,6 @@
 local _LocalPlayer = game:GetService('Players').LocalPlayer
 local RunService = game:GetService('RunService')
+local UserInputService = game:GetService('UserInputService')
 local u9 = loadstring(game:HttpGet('https://raw.githubusercontent.com/IceMinisterq/Notification-Library/Main/Library.lua'))()
 
 local EMOTES_ID = { --One or more
@@ -35,6 +36,98 @@ end
 
 function OnSpawn()
     u9:SendNotification('Info', 'by SaymoN', 3)
+    local character = GetNewCharacter()
+    character:WaitForChild('Humanoid')
+
+    local currentBlockAnim = nil
+    local animIndex = 1
+    local lastBlockReact = 0
+    local isBlocking = false
+
+    local humanoid = character:FindFirstChildOfClass('Humanoid')
+    local animator = humanoid:FindFirstChildOfClass('Animator')
+
+    local function StopBlockAnimation()
+        isBlocking = false
+        if currentBlockAnim and currentBlockAnim.IsPlaying then
+            currentBlockAnim:Stop(0.1)
+            currentBlockAnim = nil
+        end
+    end
+
+    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if gameProcessed then return end
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+            or input.UserInputType == Enum.UserInputType.Touch
+            or input.KeyCode == Enum.KeyCode.Q then
+            if isBlocking then
+                StopBlockAnimation()
+            end
+        end
+    end)
+
+    if animator then
+        animator.AnimationPlayed:Connect(function(track)
+            if isBlocking and not IsCustomAnimation(track.Animation.AnimationId) then
+                track:Stop()
+            end
+        end)
+    end
+
+    local connection = RunService.Heartbeat:Connect(function()
+        if not character.Parent then
+            connection:Disconnect()
+            return
+        end
+
+        if isBlocking and animator then
+            local tracks = animator:GetPlayingAnimationTracks()
+            for _, track in pairs(tracks) do
+                if not IsCustomAnimation(track.Animation.AnimationId) then
+                    track:Stop()
+                end
+            end
+        end
+    end)
+
+    local function PlayBlockAnimation()
+        isBlocking = true
+
+        if currentBlockAnim and currentBlockAnim.IsPlaying then
+            currentBlockAnim:Stop()
+        end
+
+        currentBlockAnim = PlayAnimation(EMOTES_ID[animIndex])
+        animIndex = animIndex + 1
+
+        if animIndex > #EMOTES_ID then
+            animIndex = 1
+        end
+    end
+
+    character:GetAttributeChangedSignal('BlockReact'):Connect(function()
+        local blockReact = math.abs(character:GetAttribute('BlockReact') or 0)
+
+        if blockReact > 0 then
+            if lastBlockReact < blockReact or math.abs(blockReact - lastBlockReact) > 1 then
+                PlayBlockAnimation()
+            end
+        else
+            isBlocking = false
+        end
+
+        lastBlockReact = blockReact
+    end)
+end
+
+if _LocalPlayer.Character then
+    task.spawn(OnSpawn)
+end
+
+_LocalPlayer.CharacterAdded:Connect(function()
+    task.spawn(OnSpawn)
+end)
+```    u9:SendNotification('Info', 'by SaymoN', 3)
     local character = GetNewCharacter()
     character:WaitForChild('Humanoid')
     
